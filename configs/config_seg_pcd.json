@@ -1,0 +1,14 @@
+{
+    "plane_iter": 100,
+    "plane_dist": 0.01,
+    "outlier_threshold": 1.0,
+    "outlier_k": 30,
+    "ground_slope": 1.0,
+    "ground_dist": 0.5,
+    "ground_size": 1,
+    "cluster_dist": 0.5,
+    "cluster_angle": 1.5,
+    "max_cluster": 100000,
+    "min_cluster": 50,
+    "segment_mode": "GROUND" 
+}

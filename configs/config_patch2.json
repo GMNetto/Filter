@@ -1,0 +1,37 @@
+{
+    "normal_radius": 0.15,
+    "keypointTECH": "UNIFORM",
+    "keypoint_method": "HARRIS",
+    "keypoint_threshold": 1e-7, 
+    "keypoint_radius": 0.1,
+
+
+    "descriptorTECH": "NONE",
+    "descriptor_radius": 0.4,
+
+    "matchTECH": "PATCHMATCH",
+    "match_radius": 0.35,
+
+    "patch_radius": 0.35,
+    "patch_min": 0.05,
+    "patchmatch_levels": 2, 
+
+    "sift_min_contrast": 0.001,
+    "sift_min_scale": 0.03,
+    "sift_n_octaves": 3,
+    "sift_n_scales_octave": 1,
+
+    "ransac_max_iter": 1,
+    "icp_max_iter": 7,
+    "number_init": 3,
+    "sigma_s": 4,
+    "sigma_r": 0.05,
+    "sigma_d": 0.75,
+    "radius_pf": 0.15,
+    "uniform_radius": 0.35,
+
+    "use_icp": true,
+    "motion_bb": 0.0,
+    "use_GT": false,
+    "KITTITECH": "c2ICP"
+}

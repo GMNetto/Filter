@@ -1,0 +1,9 @@
+*.tar.gz
+*.npz
+segmented/
+data/
+build/
+*.csv
+python/*.txt
+python/*.json
+experiments/density/

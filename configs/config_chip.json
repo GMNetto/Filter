@@ -1,0 +1,45 @@
+{
+    "normal_radius": 1.2,
+    "keypointTECH": "UNIFORM",
+    "keypoint_method": "HARRIS",
+    "keypoint_threshold": 1e-7, 
+    "keypoint_radius": 0.01,
+
+
+    "descriptorTECH": "NONE",
+    "descriptor_radius": 1.5,
+
+    "matchTECH": "NONE",
+    "match_radius": 2.0,
+    "match_icp": 3.0,
+
+    "patch_radius": 1.2,
+    "patch_min": 1.0,
+    "patchmatch_levels": 2, 
+
+    "sift_min_contrast": 0.001,
+    "sift_min_scale": 0.03,
+    "sift_n_octaves": 3,
+    "sift_n_scales_octave": 1,
+
+    "ransac_max_iter": 10,
+    "icp_max_iter": 15,
+    "icp_transformation_eps": 0.000001,
+    "number_init": 3,
+    "sigma_s": 2,
+    "sigma_r": 0.03,
+    "sigma_d": 0.7,    
+    "radius_pf": 0.7,
+    "uniform_radius": 1.0,
+
+    "cpd_beta": 2,
+    "cpd_lambda": 1.5,
+    "cpd_max_iterations": 15,
+    "cpd_tolerance": 0.01,
+
+    "use_icp": true,
+    "motion_bb": 0.0,
+    "use_GT": false,
+    "KITTITECH": "c2ICP",
+    "focus_object": "Pedestrian"
+}

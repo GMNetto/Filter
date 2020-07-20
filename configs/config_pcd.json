@@ -1,0 +1,42 @@
+{
+    "normal_radius": 0.4,
+    "keypointTECH": "UNIFORM",
+    "keypoint_method": "HARRIS",
+    "keypoint_threshold": 1e-4, 
+    "keypoint_radius": 0.15,
+
+
+    "descriptorTECH": "SHOT",
+    "descriptor_radius": 0.3,
+
+    "matchTECH": "NONE",
+    "match_radius": 0.3,
+    "patch_radius": 0.2,
+    "patch_min": 0.15,
+    "patchmatch_levels": 2, 
+
+    "sift_min_contrast": 0.001,
+    "sift_min_scale": 0.03,
+    "sift_n_octaves": 3,
+    "sift_n_scales_octave": 1,
+
+    "ransac_max_iter": 1,
+    "icp_max_iter": 1,
+    "number_init": 4,
+    "sigma_s": 1,
+    "sigma_r": 0.01,
+    "sigma_d": 1,    
+    "radius_pf": 0.075,
+    "uniform_radius": 0.2,
+  
+    "cpd_beta": 2,
+    "cpd_lambda": 2,
+    "cpd_max_iterations": 1,
+    "cpd_tolerance": 100,
+
+    "use_icp": true,
+    "motion_bb": 0.0,
+    "use_GT": false,
+    "KITTITECH": "NONE",
+    "focus_people": false
+}

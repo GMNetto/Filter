@@ -1,0 +1,7 @@
+{
+    "sigma_s": 2,
+    "sigma_r": 0.01,
+    "sigma_s_spatial": 2,
+    "sigma_r_spatial": 0.08,
+    "radius": 0.1
+}

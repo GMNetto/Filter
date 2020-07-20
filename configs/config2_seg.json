@@ -1,0 +1,15 @@
+{
+    "plane_iter": 10,
+    "plane_dist": 0.1,
+    "outlier_threshold": 1.0,
+    "outlier_k": 30,
+    "ground_slope": 1.0,
+    "ground_dist": 0.5,
+    "ground_size": 2,
+    "cluster_dist": 0.5,
+    "cluster_angle": 1.0,
+    "max_cluster": 10000,
+    "min_cluster": 200,
+    "segment_mode": "GT",
+    "segmented_dir": "" 
+}
