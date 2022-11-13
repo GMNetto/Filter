@@ -87,6 +87,7 @@ float average_point_distance(typename pcl::PointCloud<Point>::Ptr cloud_a, typen
 }
 
 void crispness_clouds(std::string f1, std::string f2, std::string result_file, InputParams &input_params);
+void crispness_clouds_2(std::string f1, std::string f2, std::string result_file, InputParams &input_params);
 
 pcl::PointXYZ crispness(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud,
  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2,

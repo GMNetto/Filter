@@ -32,6 +32,28 @@ void crispness_clouds(std::string f1, std::string f2, std::string result_file, I
     outfile2.close();
 }
 
+void crispness_clouds_2(std::string f1, std::string f2, std::string result_file, InputParams &input_params) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    bool loaded = load_pair(f1, f2, cloud1, cloud2, input_params);
+
+    std::cout << "Clouds files " << f1 << " " << f2 << std::endl;
+    std::cout << "Clouds " << cloud1->size() << " " << cloud2->size() << std::endl;
+
+    std::ofstream outfile;
+
+    outfile.open(result_file, std::fstream::out | std::fstream::app);
+
+    float result = crispness3(cloud1, cloud2);
+    float result2 = crispness3(cloud2, cloud1);
+    float result_avg = (result > result2)? result: result2;
+    std::cout << "Result: " << result_avg  << " " << result << " " << result2 << std::endl;
+    
+    outfile << std::fixed << std::setprecision(4) << result_avg << std::endl;
+    
+    outfile.close();
+}
+
 pcl::PointXYZ crispness(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud,
  pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2,
  std::shared_ptr<std::vector<int>> points) {
@@ -61,7 +83,7 @@ pcl::PointXYZ crispness(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud,
     temp.z = p.z;//(p.z + p.normal_z);
     tree.nearestKSearch(temp, 1, indices, squared_distances);
     pcl::PointXYZRGBNormal &n = cloud2->points[indices[0]];
-    acc_distances += squared_distances[0];
+    acc_distances += sqrt(squared_distances[0]);
 
     avg_point.x += n.x - temp.x;
     avg_point.y += n.y - temp.y;

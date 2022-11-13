@@ -6,7 +6,7 @@ from shutil import copyfile
 import open3d as o3
 
 # Adjust this to the current path
-PROJECT_PATH = '/home/gustavo/fitler/'
+PROJECT_PATH = '/home/gustavo/filter/'
 
 OBJ = "cyclist"
 TRACK = "1"
@@ -24,6 +24,8 @@ S4 = "0.300000"
 #IC2 = "/home/gustavo/fitler/segmented/corner_case_91/joined28/1_2.txt"
 IC1 = PROJECT_PATH + "python/mesh_0000.txt"
 IC2 = PROJECT_PATH + "python/mesh_0015.txt"
+IC1 = '/mnt/c/Users/gusta/Pictures/Results/Article2/cyclist/1.txt'
+IC2 = '/mnt/c/Users/gusta/Pictures/Results/Article2/cyclist/next_1.txt'
 #RESULT_FILE = '/mnt/c/Users/gusta/Pictures/Results/Article2/problem_2_people/joined_gmmreg.pcd'
 RESULT_FILE = '/home/gustavo/filter/dummy.pcd'
 
@@ -100,6 +102,7 @@ def execute_reg_path(current, next, result):
     copyfile(current, cloud1)
     copyfile(next, cloud2)
     cmd = '%s %s %s'%(BINARY, INI, MODE)
+    print cmd
     subprocess.call(cmd, shell=True)
     copyfile(transformed, result)
     a = np.loadtxt(result)

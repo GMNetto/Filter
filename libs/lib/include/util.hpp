@@ -394,7 +394,6 @@ void normalize_colors(typename pcl::PointCloud<Color>::Ptr colors, float thresho
             colors->points[i].normal_y > threshold ||
             colors->points[i].normal_z > threshold ||
             colors->points[i].intensity > threshold) {
-
             colors->points[i].normal_x /= colors->points[i].intensity;
             colors->points[i].normal_y /= colors->points[i].intensity;
             colors->points[i].normal_z /= colors->points[i].intensity;
@@ -456,6 +455,8 @@ pcl::PointXYZ average_vector(pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud,
   std::shared_ptr<std::vector<int>> points=NULL);
 
 int save_txt_file(std::string f, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud);
+
+int save_colored_txt_file(std::string f, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud);
 
 int load_txt_file(std::string &f, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud);
 

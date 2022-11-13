@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <fstream>
 #include <chrono>
+#include <random>
 
 #include <pcl/common/common.h>
 #include <pcl/io/ply_io.h>
@@ -31,11 +32,57 @@ printUsage (const char* progName)
   std::cout << "\n\nUsage: "<<progName<<" [options]\n\n";
 }
 
+std::shared_ptr<std::vector<int>> get_bcpd_keypoints
+    (pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr sampled,
+     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr original)
+{
+  pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBNormal> ());
+  tree->setInputCloud(original);
+
+  std::vector<int> nn_indices;
+  std::vector<float> nn_dists;
+  std::shared_ptr<std::vector<int>> result = std::make_shared<std::vector<int>>();
+  result->reserve(sampled->size());
+
+  for (int i = 0; i < sampled->size(); i++) {
+    pcl::PointXYZRGBNormal &p = sampled->points[i];
+    if (isnan(p.x)) continue;
+    tree->nearestKSearch(p, 1, nn_indices, nn_dists);
+    //std::cout << "Dist: " << nn_dists[0] << std::endl;
+    result->push_back(nn_indices[0]);
+  }
+
+  return result;
+}
+
+std::shared_ptr<std::vector<int>> get_flownet_keypoints
+    (pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr sampled,
+     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr original)
+{
+  pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBNormal> ());
+  tree->setInputCloud(original);
+
+  std::vector<int> nn_indices;
+  std::vector<float> nn_dists;
+  std::shared_ptr<std::vector<int>> result = std::make_shared<std::vector<int>>();
+  result->reserve(sampled->size());
+
+  for (int i = 0; i < sampled->size(); i++) {
+    pcl::PointXYZRGBNormal &p = sampled->points[i];
+    if (isnan(p.x)) continue;
+    tree->nearestKSearch(p, 1, nn_indices, nn_dists);
+    //std::cout << "Dist: " << nn_dists[0] << std::endl;
+    if (nn_dists[0] < 0.01)
+      result->push_back(nn_indices[0]);
+  }
+
+  return result;
+}
+
 /** visualize keypoints **/
 void keypoints_example(std::string f1, InputParams &input_params) {
   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-    pcl::io::loadPLYFile(f1, *cloud1);
-    estimate_normal<pcl::PointXYZRGBNormal>(cloud1, input_params.normal_radius);
+    load_cloud(f1, cloud1, input_params);
     
     Keypoint keypoints(input_params);
    
@@ -98,17 +145,13 @@ int main(int argc, char **argv) {
   SegParams seg_params(pt_seg);
   std::cout << "READ SEG CONFIG" << std::endl;
 
-  bool vec(false),
-    ivec(false),
-    cubes(false),
-    crisp(false);
-  std::string f1 = "",
-      f2 = "",
-      f3 = "";
-
+  bool vec(false), ivec(false), cubes(false), region(false), bcpd(false), sample(false), flownet(false), flownet2(false), color(false);
+  std::string f1 = "", f2 = "", f3 = "", f4 = "";
+  std::vector<std::string> var_f1;
+ 
   std::string tracklet_path = "";
 
-  std::string dir = "/home/gustavo/DT3D/models/Block0.4/", result_file = "./results/";
+  std::string dir = "/home/gustavo/DT3D/models/Block0.4/", result_file = "";
 
   int start = 0, end = 4;
 
@@ -126,6 +169,12 @@ int main(int argc, char **argv) {
     keypoints_example(f1, input_params);
     return 0;
   }
+  if (pcl::console::find_argument (argc, argv, "-color") >= 0)
+  {
+    color = true;
+    read2files(argc, argv, f1, f2);
+    std::cout << "Color example " << cubes << std::endl;
+  }
   else if (pcl::console::find_argument (argc, argv, "-cubes") >= 0)
   {
     cubes = true ;
@@ -141,13 +190,70 @@ int main(int argc, char **argv) {
     } 
     std::cout << "Vec example " << vec << std::endl;
   }
-  else if (pcl::console::find_argument (argc, argv, "-crispness") >= 0)
+  else if (pcl::console::find_argument (argc, argv, "-bcpd") >= 0)
   {
-    crisp = true ;
+    bcpd = true;
+    read2files(argc, argv, f1, f2);
+    if (pcl::console::find_argument (argc, argv, "-f3") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f3", f3);
+    }
+    if (pcl::console::find_argument (argc, argv, "-f4") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f4", f4);
+    }
+    std::cout << "BCPD" << std::endl;
+  }
+  else if (pcl::console::find_argument (argc, argv, "-flownet") >= 0)
+  {
+    flownet = true;
+    //read2files(argc, argv, f1, f2);
+    if (pcl::console::find_argument (argc, argv, "-f1") >= 0) {
+      pcl::console::parse_multiple_arguments (argc, argv, "-f1", var_f1);
+    }
+    if (pcl::console::find_argument (argc, argv, "-f2") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f2", f2);
+    }
+    if (pcl::console::find_argument (argc, argv, "-f3") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f3", f3);
+    }
+    if (pcl::console::find_argument (argc, argv, "-f4") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f4", f4);
+    }
+    std::cout << "FLOWNET" << std::endl;
+  }
+  else if (pcl::console::find_argument (argc, argv, "-flownet2") >= 0)
+  {
+    flownet2 = true;
+    //read2files(argc, argv, f1, f2);
+    if (pcl::console::find_argument (argc, argv, "-f1") >= 0) {
+      pcl::console::parse_multiple_arguments (argc, argv, "-f1", var_f1);
+    }
+    if (pcl::console::find_argument (argc, argv, "-f2") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f2", f2);
+    }
+    if (pcl::console::find_argument (argc, argv, "-f3") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f3", f3);
+    }
+    std::cout << "FLOWNET2" << std::endl;
+  }
+   else if (pcl::console::find_argument (argc, argv, "-crispness") >= 0)
+  {
     read2files(argc, argv, f1, f2);
     std::cout << "Crispness" << std::endl;
     crispness_clouds(f1, f2, result_file, input_params);
     return 0;
+  }
+  else if (pcl::console::find_argument (argc, argv, "-crispness2") >= 0)
+  {
+    read2files(argc, argv, f1, f2);
+    std::cout << "Crispness" << std::endl;
+    crispness_clouds_2(f1, f2, result_file, input_params);
+    return 0;
+  }
+  else if (pcl::console::find_argument (argc, argv, "-region") >= 0)
+  {
+    region = true;
+    read2files(argc, argv, f1, f2);
+    std::cout << "Region" << std::endl;
   }
   else if (pcl::console::find_argument (argc, argv, "-ivec") >= 0)
   {
@@ -157,6 +263,14 @@ int main(int argc, char **argv) {
       readSequence(argc, argv, dir, tracklet_path, start, end);
     } 
     std::cout << "IVec example " << vec << std::endl;
+  }
+  else if (pcl::console::find_argument (argc, argv, "-sample") >= 0)
+  {
+    sample = true ;
+    if (pcl::console::find_argument (argc, argv, "-f1") >= 0) {
+      pcl::console::parse_argument (argc, argv, "-f1", f1);
+    }
+    std::cout << "Sample example " << vec << std::endl;
   }
   else
   {
@@ -281,7 +395,7 @@ int main(int argc, char **argv) {
 
       pcl::copyPointCloud(*cloud2, *s_cloud2);
       bb = true;
-    } else if (input_params.kitti_tech == "c2ICP" || input_params.kitti_tech == "trICP" || input_params.kitti_tech == "pmICP") {
+    } else if (input_params.kitti_tech == "c2ICP" || input_params.kitti_tech == "trICP" || input_params.kitti_tech == "pmICP" ) {
       KITTI kitti(input_params, seg_params);
       pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr projected_ (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
       std::cout << "ICP" << std::endl;
@@ -289,24 +403,35 @@ int main(int argc, char **argv) {
       
       std::vector<int> points_cloud2;
       
-      sample_cloud(cloud1, cloud2, points_cloud2, input_params.match_icp);
+      //sample_cloud(cloud1, cloud2, points_cloud2, input_params.match_icp);
       
       //pcl::copyPointCloud(*cloud2, points_cloud2, *s_cloud2);
       pcl::copyPointCloud(*cloud2, *s_cloud2);
       std::cout << "C1: " << cloud1->size() << " C2: " << s_cloud2->size() << std::endl;
       
-      
-      kitti.icpBox(cloud1, s_cloud2, *projected_, icp_flow, transformed);
-      std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-      double elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-      std::cout << "Elapsed time: " << elapsed_secs << std::endl;
-      pcl::copyPointCloud(*projected_, *cloud1);
+      if (input_params.use_icp) {
+        kitti.icpBox(cloud1, s_cloud2, *projected_, icp_flow, transformed);
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        double elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+        std::cout << "Elapsed time: " << elapsed_secs << std::endl;
+        pcl::copyPointCloud(*projected_, *cloud1);
+      }
     } else if (input_params.kitti_tech == "bbCPD") {
       KITTI kitti(input_params, seg_params);
       pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr projected_ (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-      std::cout << "CPD" << std::endl;
+      std::cout << "CPD "  << input_params.match_icp << std::endl;
+
+
+      std::vector<int> points_cloud2;
+      
+      sample_cloud(cloud1, cloud2, points_cloud2, input_params.match_icp);
+      
+      pcl::copyPointCloud(*cloud2, points_cloud2, *s_cloud2);
+      //pcl::copyPointCloud(*cloud2, *s_cloud2);
+      std::cout << "C1: " << cloud1->size() << " C2: " << s_cloud2->size() << std::endl;
+      save_txt_file("/home/gustavo/filter/cpd/sampled_cloud2.txt", s_cloud2);
       std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-      kitti.cpdBox(cloud1, cloud2, *projected_, icp_flow);
+      kitti.cpdBox(cloud1, s_cloud2, *projected_, icp_flow);
       std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
       double elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
       std::cout << "Elapsed time: " << elapsed_secs << std::endl;
@@ -361,6 +486,11 @@ int main(int argc, char **argv) {
     float filter_result2 = crispness3(projected, cloud2);
     std::cout << "Icp result2: " << icp_result2 << std::endl;
     std::cout << "Filter result2: " << filter_result2 << std::endl;
+    if (input_params.use_GT) {
+      float inv_filter_result2 = crispness3(cloud2, projected);
+      float worst = (filter_result2 > inv_filter_result2)? filter_result2: inv_filter_result2;
+      std::cout << "Filter result22: " << worst << std::endl;
+    }
     
     if (!input_params.use_GT) {
       flow_vis_loop(icp_flow);
@@ -380,15 +510,13 @@ int main(int argc, char **argv) {
       p.y += vec.normal_y;
       p.z += vec.normal_z;
     }
-
+    if (result_file != "") {
+      save_txt_file(result_file, projected_cloud);
+    }
     if (input_params.use_GT) {
       std::cout << "C1: " << cloud1->size() << " C2: " << cloud2->size() << "R: " << projected_cloud->size() << std::endl;
       std::cout << "Distance c1 -> c2: " << average_of_distance_GT(cloud2, cloud1) << std::endl;
       std::cout << "Distance proj -> c2: " << average_of_distance_GT(cloud2, projected_cloud) << std::endl;
-    }
-
-    if (result_file != "") {
-      save_txt_file(result_file, projected_cloud);
     }
 
     if (!input_params.use_GT) {
@@ -449,6 +577,27 @@ int main(int argc, char **argv) {
       join_flows(icp_flow, new_cloud);
     }
 
+    if (result_file != "") {
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr colored_result (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+      pcl::copyPointCloud(*new_cloud, *colored_result);
+      for (int i = 0; i < new_cloud->size(); i++) {
+        float vec_x = new_cloud->points[i].normal_x;
+        float vec_y = new_cloud->points[i].normal_y;
+        float vec_z = new_cloud->points[i].normal_z;
+        float mag = sqrt(vec_x*vec_x + vec_y*vec_y + vec_z*vec_z);
+
+        pcl::PointXYZRGBNormal &p = colored_result->points[i];
+        p.normal_y = 0;
+        p.normal_z = 0;
+        if (mag > 0.1) {
+          p.normal_x = 1;
+        } else {
+          p.normal_x = 0;
+        }
+      }
+      save_colored_txt_file(result_file, colored_result);
+    }
+
     flow_vis_loop(new_cloud);
 
     for (int i = 0; i < cloud2->size(); i++) {
@@ -470,5 +619,296 @@ int main(int argc, char **argv) {
     return 0;
 
   }
+  else if (color == true)
+  {
+    std::cout << "COLOR" << std::endl;
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    bool bb = false;
+    bool loaded = load_pair(f1, f2, cloud1, cloud2, input_params);
+    
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZINormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr projected_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr new_normals (new pcl::PointCloud<pcl::PointXYZINormal>);
+    pcl::copyPointCloud(*cloud1, *new_normals);
+    flow_vis_loop(new_normals);
+
+    Spread sp(input_params);
+    sp.icloud_color(cloud1,
+              cloud2,
+              new_cloud);
+
+    pcl::copyPointCloud(*cloud1, *projected_cloud);
+    for (int i = 0; i < new_cloud->size(); i++) {
+        pcl::PointXYZINormal &p = new_cloud->points[i];
+        int val = int(255*p.normal_x);
+        projected_cloud->points[i].r = (val > 255) ? 255: val;
+        val = int(255*p.normal_y);
+        projected_cloud->points[i].g = (val > 255) ? 255: val;
+        val = int(255*p.normal_z);
+        projected_cloud->points[i].b = (val > 255) ? 255: val;
+    }
+
+    viewer = rgbVis(projected_cloud);
+
+    while (!viewer->wasStopped ())
+    {
+      viewer->spinOnce (100);
+      boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+    }
+
+    return 0;
+
+  } else if (bcpd == true) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_x (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_y (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr original (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    bool bb = false;
+    load_pair(f1, f2, cloud_x, cloud_y, input_params);
+    load_pair(f3, f4, original, cloud2, input_params);
+    
+    std::shared_ptr<std::vector<int>> key_points = get_bcpd_keypoints(cloud_x, original);
+
+    // Filter to spread correspondences
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr vecs (new pcl::PointCloud<pcl::PointXYZINormal>);
+    pcl::copyPointCloud(*original, *vecs);
+
+    // Zero all vecs vectors
+    for (int i=0; i < vecs->size(); i++) {
+        vecs->points[i].normal_x = 0;
+        vecs->points[i].normal_y = 0;
+        vecs->points[i].normal_z = 0;
+        vecs->points[i].intensity = 0;
+    }
+    
+    for (int i=0; i < key_points->size(); i++) {
+        int kp_idx = key_points->at(i);
+
+        pcl::PointXYZRGBNormal &p = cloud_x->points[i], &q = cloud_y->points[i];
+
+        vecs->points[kp_idx].normal_x = q.x - p.x;
+        vecs->points[kp_idx].normal_y = q.y - p.y;
+        vecs->points[kp_idx].normal_z = q.z - p.z;
+        vecs->points[kp_idx].intensity = 1;
+    }
+
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZINormal>);
+    SpatialFilter sf(input_params);
+
+    std::vector<int> valid_keypoints;
+    valid_keypoints.reserve(vecs->size());
+    for (int i = 0 ; i < key_points->size(); i++) {
+      valid_keypoints.push_back(key_points->at(i));
+    }
+
+    // obtain a time-based seed:
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+
+    shuffle (valid_keypoints.begin(), valid_keypoints.end(), std::default_random_engine(seed));
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    sf.pf_3D_vec(original, vecs, new_cloud, valid_keypoints);
+
+    normalize_colors<pcl::PointXYZINormal>(new_cloud, 0.0001);
+
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    double elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+    std::cout << "Elapsed time: " << elapsed_secs << std::endl;   
+
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr projected_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::copyPointCloud(*original, *projected_cloud);
+    for (int i = 0; i < projected_cloud->size(); i++) {
+      pcl::PointXYZRGBNormal &p = projected_cloud->points[i];
+      pcl::PointXYZINormal &vec = new_cloud->points[i];
+      p.x += vec.normal_x;
+      p.y += vec.normal_y;
+      p.z += vec.normal_z;
+    }
+
+    if (result_file != "") {
+      save_txt_file(result_file, projected_cloud);
+      return 0;
+    }
+
+    std::cout << "C1: " << original->size() << " C2: " << cloud2->size() << "R: " << projected_cloud->size() << std::endl;
+    std::cout << "Distance GT c1 -> c2: " << average_of_distance_GT(cloud2, original) << std::endl;
+    std::cout << "Distance GT proj -> c2: " << average_of_distance_GT(cloud2, projected_cloud) << std::endl;
+    float filter_result2 = crispness3(projected_cloud, cloud2);
+    std::cout << "Distance closest point proj -> c2: " << filter_result2 << std::endl;
+
+
+    flow_vis_loop(new_cloud);
+
+    flow_vis_loop(new_cloud);
+    for (int i = 0; i < cloud2->size(); i++) {
+      cloud2->points[i].r = 40;
+      cloud2->points[i].g = 40;
+      cloud2->points[i].b = 40;
+    }
+    
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr merged (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    project_points(new_cloud, cloud2, merged);
+    viewer = rgbVis(merged);
+
+    while (!viewer->wasStopped ())
+    {
+      viewer->spinOnce (100);
+      boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+    }
+
+  } else if (sample) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+    load_txt_file(f1, cloud);
+
+    Keypoint keypoints(input_params);
+    std::shared_ptr<std::vector<int>> key_points = keypoints.get_keypoints(cloud);
+
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr sampled (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::copyPointCloud (*cloud, *key_points, *sampled); 
+    
+    save_txt_file(result_file, sampled);
+  } else if (region) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    bool loaded = load_pair(f1, f2, cloud1, cloud2, input_params);
+    
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr s_cloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    std::vector<int> points_cloud2;
+      
+    sample_cloud(cloud1, cloud2, points_cloud2, input_params.match_icp);
+    
+    pcl::copyPointCloud(*cloud2, points_cloud2, *s_cloud2);
+    //pcl::copyPointCloud(*cloud2, *s_cloud2);
+    std::cout << "C1: " << cloud1->size() << " C2: " << s_cloud2->size() << std::endl;
+    save_txt_file(result_file, s_cloud2);
+    return 0;
+  } else if (flownet) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr flow_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr sampled_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    bool bb = false;
+    for (std::string single_f1: var_f1) {
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr temp_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+      load_cloud(single_f1, temp_cloud, input_params);
+      *object_cloud += *temp_cloud;
+    }
+    load_cloud(f2, flow_cloud, input_params);
+    load_pair(f3, f4, sampled_cloud, cloud2, input_params);
+    
+    std::shared_ptr<std::vector<int>> key_points = get_flownet_keypoints(object_cloud, sampled_cloud);
+
+    // Experiments
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr flow_sampled_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_sampled_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZINormal>);
+    pcl::copyPointCloud(*sampled_cloud, *key_points, *object_sampled_cloud);
+    pcl::copyPointCloud(*flow_cloud, *key_points, *flow_sampled_cloud);
+    pcl::copyPointCloud(*object_sampled_cloud, *new_cloud);
+    for (int i = 0; i < object_sampled_cloud->size(); i++) {
+      pcl::PointXYZRGBNormal &vec = flow_sampled_cloud->points[i];
+      pcl::PointXYZINormal &v = new_cloud->points[i];
+      v.normal_x = vec.x;
+      v.normal_y = vec.y;
+      v.normal_z = vec.z;
+
+      pcl::PointXYZRGBNormal &p = object_sampled_cloud->points[i];
+      vec.x += p.x;
+      vec.y += p.y;
+      vec.z += p.z;
+    }
+
+    std::cout << "C1: " << object_sampled_cloud->size() << " C2: " << cloud2->size() << "R: " << flow_sampled_cloud->size() << std::endl;
+    float before = crispness3(object_sampled_cloud, cloud2);
+    float filter_result = crispness3(flow_sampled_cloud, cloud2);
+    std::cout << "Icp result: " << before << std::endl;
+    std::cout << "Filter result: " << filter_result << std::endl;
+
+    if (result_file != "") {
+      // Save into result_file.csv
+      std::ofstream outfile, outfile2;
+
+      outfile.open(result_file + ".csv", std::fstream::out | std::fstream::app);
+
+      outfile << std::fixed << std::setprecision(4) << filter_result << std::endl;
+      
+      outfile.close();
+      return 0;
+    }
+
+    for (int i = 0; i < cloud2->size(); i++) {
+      cloud2->points[i].r = 40;
+      cloud2->points[i].g = 40;
+      cloud2->points[i].b = 40;
+    }
+    
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr merged (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    project_points(new_cloud, cloud2, merged);
+    viewer = rgbVis(merged);
+
+    while (!viewer->wasStopped ())
+    {
+      viewer->spinOnce (100);
+      boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+    }
+  } else if (flownet2) {
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr flow_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr sampled_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    bool bb = false;
+    for (std::string single_f1: var_f1) {
+      pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr temp_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+      load_cloud(single_f1, temp_cloud, input_params);
+      *object_cloud += *temp_cloud;
+    }
+    load_cloud(f2, flow_cloud, input_params);
+    load_cloud(f3, sampled_cloud, input_params);
+    
+    std::shared_ptr<std::vector<int>> key_points = get_flownet_keypoints(object_cloud, sampled_cloud);
+
+    // Experiments
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr flow_sampled_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr object_sampled_cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZINormal>);
+    pcl::copyPointCloud(*sampled_cloud, *key_points, *object_sampled_cloud);
+    pcl::copyPointCloud(*flow_cloud, *key_points, *flow_sampled_cloud);
+    pcl::copyPointCloud(*object_sampled_cloud, *new_cloud);
+    for (int i = 0; i < object_sampled_cloud->size(); i++) {
+      pcl::PointXYZRGBNormal &vec = flow_sampled_cloud->points[i];
+      pcl::PointXYZINormal &v = new_cloud->points[i];
+      v.normal_x = vec.x;
+      v.normal_y = vec.y;
+      v.normal_z = vec.z;
+
+      pcl::PointXYZRGBNormal &p = object_sampled_cloud->points[i];
+      vec.x += p.x;
+      vec.y += p.y;
+      vec.z += p.z;
+    }
+
+    if (result_file != "") {
+      // Save into result_file.csv
+
+      save_txt_file(result_file, flow_sampled_cloud);
+      save_txt_file(result_file + "2", object_sampled_cloud);
+
+      // std::ofstream outfile, outfile2;
+
+      // outfile.open(result_file + ".csv", std::fstream::out | std::fstream::app);
+
+      // outfile << std::fixed << std::setprecision(4) << filter_result << std::endl;
+      
+      // outfile.close();
+      return 0;
+    }
+  }
+  // Take three files as input output_x, output_y (calculate vectors)
+  // Take output file, filter and 
   return 0;
 }
+
+

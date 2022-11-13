@@ -6,6 +6,7 @@
 #include <pcl/filters/fast_bilateral.h>
 #include <pcl/common/geometry.h>
 #include <pcl/surface/gp3.h>
+#include <chrono>
 
 #include <Eigen/Core>
 #include <cmath>
@@ -18,6 +19,7 @@
 void SpatialFilter::copy_n_vec(std::deque<int>& neighbors_next, int current_elem) {
     //for (int point: this->neighbors[current_elem])
     //    this->neighbors.push_back(point);
+    //std::cout << "N# " << this->neighbors[current_elem].size() << std::endl;
     neighbors_next.insert(neighbors_next.end(), this->neighbors[current_elem].begin(), this->neighbors[current_elem].end());
     this->visited[current_elem] = 1;
 }
@@ -49,7 +51,7 @@ void SpatialFilter::filter_PF_vec(int index, int neighbor_idx,
     const pcl::PointXYZRGBNormal &neighbor_normal = cloud->points[neighbor_idx];
 
     float permeability = permeability_radial_vec(*current_point, *current_point, neighbor_point, neighbor_normal);
-    
+    //std::cout << "Perm " << permeability << std::endl;
     float sq_per = permeability*permeability;
 
     pcl::PointXYZINormal previous = s[0][neighbor_idx];
@@ -158,6 +160,7 @@ void SpatialFilter::BFS_vec(pcl::PointCloud<pcl::PointXYZRGBNormal>::ConstPtr cl
                 this->copy_n_vec(next_neighbors, next_elem);
                 this->filter_PF_neighbors_vec(next_elem, cloud, vecs, this->ls);
             }
+            //return;
         }
         if (i == cloud->size()-1)
             i = 0;
@@ -185,7 +188,8 @@ void SpatialFilter::get_neighbors
     std::vector<int> pre_alloc_point_neighbors;
     this->neighbors.resize (point_number, pre_alloc_point_neighbors);
     this->order_visit.reserve(point_number);
-
+    //std::cout << "radius " << radius << std::endl;
+    float sum_n = 0;
     #pragma omp parallel for
     for (int i = 0; i < point_number; i++)
     {
@@ -193,8 +197,11 @@ void SpatialFilter::get_neighbors
         std::vector<float> distances;
         //point_neighbors.clear();
         tree.radiusSearch (i, radius, point_neighbors, distances);
+        // Could limit number points inside range. This would make things faster
         this->neighbors[i].swap (point_neighbors);
+        sum_n += distances.size();
     }
+    std::cout << "Avg N " << sum_n/float(point_number) << std::endl;
 }
 
 void SpatialFilter::reset() {
@@ -207,7 +214,11 @@ void SpatialFilter::pf_3D_vec(pcl::PointCloud<pcl::PointXYZRGBNormal>::ConstPtr 
     , pcl::PointCloud<pcl::PointXYZINormal>::Ptr result
     , const std::vector<int>& initial_points) {
 
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     this->get_neighbors(cloud);
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    double elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+    std::cout << "Elapsed N time: " << elapsed_secs << std::endl;
 
     pcl::copyPointCloud(*vecs, *result);
 
@@ -221,19 +232,27 @@ void SpatialFilter::pf_3D_vec(pcl::PointCloud<pcl::PointXYZRGBNormal>::ConstPtr 
     one.normal_x = one.normal_y = one.normal_z = 1.f;
     pcl::PointXYZINormal num, den;
 
+    std::chrono::steady_clock::time_point begin2 = std::chrono::steady_clock::now();
     for(int j=0; j < std::min(this->number_initial, (int)initial_points.size()); j++) {
         int initial = initial_points[j];
 
+        begin = std::chrono::steady_clock::now();
         std::cout << "BFS " << initial << std::endl;
         BFS_vec(cloud, result, initial);
         std::fill(this->visited.begin(), this->visited.end(), -1);
+        end = std::chrono::steady_clock::now();
+        elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+        std::cout << "Elapsed F time: " << elapsed_secs << std::endl;
 
+        begin = std::chrono::steady_clock::now();
         std::cout << "Half" << std::endl;
         BFS_back_vec(cloud, result);
         std::fill(this->visited.begin(), this->visited.end(), -1);
+        end = std::chrono::steady_clock::now();
+        elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+        std::cout << "Elapsed B time: " << elapsed_secs << std::endl;
 
-        //std::vector<int> initial_points = {3251, 3110, 3103, 236, 3108, 2876, 2877, 1427, 3252};
-        //It is possible to already calculate the result in back
+        begin = std::chrono::steady_clock::now();
         std::cout << "Going to norm" << std::endl;
         for (int i=0; i < cloud_size; i++) {
         //for (int i:initial_points) {
@@ -248,10 +267,15 @@ void SpatialFilter::pf_3D_vec(pcl::PointCloud<pcl::PointXYZRGBNormal>::ConstPtr 
 
             divide_normal<pcl::PointXYZINormal>(num, den, result->points[i]);
             result->points[i].intensity = num.intensity/den.intensity;
-            //std::cout << result->points[i] << std::endl;
         }
         std::cout << "Going to reset " << j << " " <<  this->number_initial << std::endl;
         this->reset_s();
         this->order_visit.clear();
+        end = std::chrono::steady_clock::now();
+        elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+        std::cout << "Elapsed No time: " << elapsed_secs << std::endl;
     }
+    std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
+    elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count();
+    std::cout << "Elapsed F time: " << elapsed_secs << std::endl;
 }

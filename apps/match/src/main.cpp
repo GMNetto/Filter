@@ -68,7 +68,8 @@ int main(int argc, char **argv) {
   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
   if (input_params.kitti_tech == "c2ICP") {
-    CustomICP<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> icp;
+    //CustomICP<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> icp;
+    pcl::IterativeClosestPoint<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> icp;
 
     pcl::registration::CorrespondenceEstimationNormalShooting<pcl::PointXYZRGBNormal,
         pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>::Ptr
@@ -79,9 +80,9 @@ int main(int argc, char **argv) {
     rej_sample->setMaximumIterations(input_params.ransac_max_iter);
     rej_sample->setInlierThreshold(input_params.match_icp);
 
-    icp = CustomICP<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>(input_params); 
+    //icp = CustomICP<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>(input_params); 
 
-    icp.setCorrespondenceEstimation(cor);
+    //icp.setCorrespondenceEstimation(cor);
     icp.addCorrespondenceRejector(rej_sample);
 
     icp.setMaxCorrespondenceDistance(input_params.match_icp);
@@ -100,9 +101,10 @@ int main(int argc, char **argv) {
   } else if (input_params.kitti_tech == "trICP") {
     pcl::recognition::TrimmedICP<pcl::PointXYZRGBNormal, float> trimmed_icp;
     trimmed_icp.init(cloud2);
-    trimmed_icp.setNewToOldEnergyRatio (0.995f);
+    trimmed_icp.setNewToOldEnergyRatio (0.99);
     transform.setIdentity();
-    trimmed_icp.align(*cloud1, 100, transform);
+    int npo = cloud1->points.size()/5;
+    trimmed_icp.align(*cloud1, npo, transform);
   } else if (input_params.kitti_tech == "pmICP") {
     PatchMatchICP<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> patchmatch_icp;
     patchmatch_icp = PatchMatchICP<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>(input_params); 
@@ -132,8 +134,32 @@ int main(int argc, char **argv) {
 
     transform = m.get_best_transformation();
     //pcl::transformPointCloud(*cloud1, *transformed, transform);
-  }
+  } else if (input_params.kitti_tech == "TEASER_FEATURE") {
+    MatchTeaser m(input_params);
+    Keypoint keypoints(input_params);
 
+    std::shared_ptr<std::vector<int>> key_points = keypoints.get_keypoints(cloud1);
+    std::unordered_map<int, int> matches;
+    std::unordered_map<int, pcl::PointXYZ> vectors;
+
+    m.local_correspondences(key_points, cloud1, cloud2, vectors, matches);
+
+    transform = m.get_best_transformation();
+    //pcl::transformPointCloud(*cloud1, *transformed, transform);
+  } else if (input_params.kitti_tech == "TEASER_FEATURE_POINT") {
+    MatchTeaserPoints m(input_params);
+    Keypoint keypoints(input_params);
+
+    std::shared_ptr<std::vector<int>> key_points = keypoints.get_keypoints(cloud1);
+    std::unordered_map<int, int> matches;
+    std::unordered_map<int, pcl::PointXYZ> vectors;
+
+    m.local_correspondences(key_points, cloud1, cloud2, vectors, matches);
+
+    transform = m.get_best_transformation();
+    //pcl::transformPointCloud(*cloud1, *transformed, transform);
+  }
+  
   std::chrono::steady_clock::time_point finish = std::chrono::steady_clock::now();
   double elapsed_secs = std::chrono::duration_cast<std::chrono::milliseconds>(finish - begin).count();
   std::cout << "Elapsed time : " << elapsed_secs << std::endl;

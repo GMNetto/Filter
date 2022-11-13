@@ -23,9 +23,8 @@ CLOUD2="/home/gustavo/filter/segmented/91/28/groundless.txt"
 #CLOUD1="/mnt/c/Users/gusta/Desktop/testKitti/horse1.obj"
 #CLOUD2="/mnt/c/Users/gusta/Desktop/testKitti/horse3.obj"
 
-CLOUD1="/home/gustavo/filter/segmented/mesh1/mesh_0116.obj"
-#CLOUD1="/home/gustavo/filter/dummy.txt"
-CLOUD2="/home/gustavo/filter/segmented/mesh1/mesh_0117.obj"
+CLOUD1="/home/gustavo/filter/segmented/pedestrian_05/4/groundless.txt"
+CLOUD2="/home/gustavo/filter/segmented/pedestrian_05/5/groundless.txt"
 # CLOUD1="/home/gustavo/filter/build/src.txt"
 # CLOUD2="/home/gustavo/filter/build/tgt.txt"
 
@@ -34,7 +33,7 @@ CLOUD2="/home/gustavo/filter/segmented/mesh1/mesh_0117.obj"
 
 START=0
 END=150
-CONFIG="../configs/mesh/config_mesh_shot.json"
+CONFIG="../configs/config_perm.json"
 SEG_CONFIG="../configs/config_seg.json"
 TEMP_CONFIG="../temp_config.json"
 #RESULT_FILE="/mnt/c/Users/gusta/Documents/Research/Results/"
@@ -52,4 +51,4 @@ RESULT_FILE="/home/gustavo/filter/dummy.txt"
 #./trans1 -crispness -f1 $CLOUD1 -f2 $CLOUD2 -config $CONFIG -seg-config $SEG_CONFIG -result-file $RESULT_FILE
 
 #./apps/app/app -sample -f1 $CLOUD1 -config $CONFIG -seg-config $SEG_CONFIG -result-file $RESULT_FILE
-./apps/app/app -vec -f1 $CLOUD1 -f2 $CLOUD2 -config $CONFIG -seg-config $SEG_CONFIG -result-file $RESULT_FILE
+./apps/app/app -color -f1 $CLOUD1 -f2 $CLOUD2 -config $CONFIG -seg-config $SEG_CONFIG -result-file $RESULT_FILE

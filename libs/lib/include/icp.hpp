@@ -341,10 +341,10 @@ class CustomConvergenceCriteria : public DefaultConvergenceCriteria<Scalar>
 
         correspondences_cur_mse_ = calculateMSE (*custom_correspondences);
         //PCL_DEBUG ("[pcl::DefaultConvergenceCriteria::hasConverged] Previous / Current MSE for correspondences distances is: %f / %f.\n", correspondences_prev_mse_, correspondences_cur_mse_);
-
+        //std::cout << "correspondences_cur_mse_ " << correspondences_cur_mse_  << " " << mse_threshold_absolute_ << std::endl;
         // 3. The relative sum of Euclidean squared errors is smaller than a user defined threshold
         // Absolute
-        if (std::abs (correspondences_cur_mse_ - correspondences_prev_mse_) < mse_threshold_absolute_)
+        if (std::abs (correspondences_cur_mse_ - correspondences_prev_mse_) < 0.001)//mse_threshold_absolute_)
         {
             if (iterations_similar_transforms_ >= max_iterations_similar_transforms_)
             {
@@ -384,7 +384,6 @@ class CustomConvergenceCriteria : public DefaultConvergenceCriteria<Scalar>
 
 }
 
-
 template <typename PointSource, typename PointTarget, typename Scalar = float>
 class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Scalar>
 {
@@ -398,6 +397,7 @@ class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Sc
     typedef typename PointCloudTarget::ConstPtr PointCloudTargetConstPtr;
 
     typedef typename pcl::Registration<PointSource, PointTarget, Scalar>::Matrix4 Matrix4;
+    using CorrespondenceRejectorPtr = pcl::registration::CorrespondenceRejector::Ptr;
     using pcl::Registration<PointSource, PointTarget, Scalar>::getClassName;
     using pcl::Registration<PointSource, PointTarget, Scalar>::input_;
     using pcl::IterativeClosestPoint<PointSource, PointTarget, Scalar>::target_;
@@ -435,6 +435,12 @@ class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Sc
         transformation_estimation_.reset (new pcl::registration::TransformationEstimationSVD<PointSource, PointTarget, Scalar> ());
         correspondence_estimation_.reset (new pcl::registration::CorrespondenceEstimation<PointSource, PointTarget, Scalar>);
         convergence_criteria_2.reset(new pcl::registration::CustomConvergenceCriteria<Scalar> (nr_iterations_, transformation_, *correspondences_));
+    }
+
+    inline void
+    addCorrespondenceRejector (const CorrespondenceRejectorPtr &rejector)
+    {
+        correspondence_rejectors_.push_back (rejector);
     }
 
   protected:
@@ -486,6 +492,7 @@ class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Sc
 
         convergence_criteria_2->setMaximumIterations(max_iterations_);
         convergence_criteria_2->setRelativeMSE(euclidean_fitness_epsilon_);
+        convergence_criteria_2->setAbsoluteMSE(euclidean_fitness_epsilon_);
         convergence_criteria_2->setTranslationThreshold(transformation_epsilon_);
         convergence_criteria_2->setRotationThreshold(1.0 - transformation_epsilon_);
         convergence_criteria_2->setIter(&nr_iterations_);
@@ -503,13 +510,14 @@ class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Sc
         {
             //std::cout << "DEBUG0 " << nr_iterations_ << std::endl;
             //BOOST_LOG_TRIVIAL(debug) << "Iteraction " << nr_iterations_;
-            float current_diff = computeErrorMetric(input_transformed, tree_);
+            //float current_diff = computeErrorMetric(input_transformed, tree_);
             //BOOST_LOG_TRIVIAL(debug) << "Acc error: " << current_diff;
             //std::cout << "Iteraction: " << nr_iterations_;
-            //std::cout << " Acc error: " << current_diff << std::endl;
-            if (nr_iterations_ > 0 && abs(current_diff - prev_diff) <= 0.001)
-               break;
-            prev_diff = current_diff;
+            // std::cout << " Acc error: " << current_diff << std::endl;
+            // if (nr_iterations_ > 0 && abs(current_diff - prev_diff) <= 0.001)
+            //    break;
+            
+            //prev_diff = current_diff;
             // Get blob data if needed
             pcl::PCLPointCloud2::Ptr input_transformed_blob;
             if (need_source_blob_)
@@ -529,10 +537,19 @@ class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Sc
                 correspondence_estimation_->determineReciprocalCorrespondences(*correspondences_, corr_dist_threshold_);
             else
                 correspondence_estimation_->determineCorrespondences(*correspondences_, corr_dist_threshold_);
+            
+            float current_diff = 0;
+            for (int i = 0; i < correspondences_->size(); i++) {
+                current_diff += correspondences_->at(i).distance;
+            }
+            if (nr_iterations_ > 0 && abs(current_diff - prev_diff) <= 0.001)
+               break;
+            prev_diff = current_diff;
             //std::cout << "DEBUG2" << std::endl;
             //if (correspondence_rejectors_.empty ())
             pcl::CorrespondencesPtr temp_correspondences(new pcl::Correspondences(*correspondences_));
             *temp_correspondences = *correspondences_;
+            
             for (size_t i = 0; i < correspondence_rejectors_.size(); ++i)
             {
                 pcl::registration::CorrespondenceRejector::Ptr &rej = correspondence_rejectors_[i];
@@ -550,10 +567,11 @@ class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Sc
             }
 
             size_t cnt = correspondences_->size();
+            //std::cout << "Corresp size " << cnt << " " << input_->size() << std::endl;
             // Check whether we have enough correspondences
             if (static_cast<int>(cnt) < min_number_correspondences_)
             {
-                PCL_ERROR("[pcl::%s::computeTransformation] Not enough correspondences found. Relax your threshold parameters.\n", getClassName().c_str());
+                //PCL_ERROR("[pcl::%s::computeTransformation] Not enough correspondences found. Relax your threshold parameters.\n", getClassName().c_str());
                 convergence_criteria_2->setConvergenceState(pcl::registration::DefaultConvergenceCriteria<Scalar>::CONVERGENCE_CRITERIA_NO_CORRESPONDENCES);
                 converged_ = false;
                 break;
@@ -564,18 +582,15 @@ class CustomICP : public pcl::IterativeClosestPoint<PointSource, PointTarget, Sc
             //std::cout << "DEBUG4" << std::endl;
             // Transform the data
             transformCloud(*input_transformed, *input_transformed, transformation_);
-
             // Obtain the final transformation
             final_transformation_ = transformation_ * final_transformation_;
 
             ++nr_iterations_;
-
             // Update the vizualization of icp convergence
             //if (update_visualizer_ != 0)
             //  update_visualizer_(output, source_indices_good, *target_, target_indices_good );
 
             //std::cout << "CC: " << convergence_criteria_2->getConvergenceState() << " " << pcl::registration::DefaultConvergenceCriteria<Scalar>::CONVERGENCE_CRITERIA_NOT_CONVERGED << std::endl;
-
             bool temp = convergence_criteria_2->hasConverged(); 
             converged_ = temp;
             //std::cout << "CC1: " << temp << " " << converged_ << " " << convergence_criteria_2->getConvergenceState() << std::endl;

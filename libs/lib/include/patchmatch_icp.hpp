@@ -72,7 +72,7 @@ class PatchMatchCorrespondenceEstimation : public CorrespondenceEstimationNormal
         srand (time(NULL));
     } 
 
-    float get_point_correspondence(int index, double max_dist, pcl::Correspondences &t_corresp) {
+    float get_point_correspondence(int index, double max_dist, pcl::Correspondences &t_corresp, double min_energy) {
         std::vector<int> nn_indices;
         std::vector<float> nn_dists;
 
@@ -111,6 +111,8 @@ class PatchMatchCorrespondenceEstimation : public CorrespondenceEstimationNormal
             float dist = sqrt(nn_dists[0]);
             t_corresp[i].distance = dist;
             energy += t_corresp[i].distance;
+            if (energy >= min_energy)
+                break;
         }
         return energy;
     }
@@ -146,10 +148,10 @@ class PatchMatchCorrespondenceEstimation : public CorrespondenceEstimationNormal
             return;
 
         srand (time(NULL));
-        std::cout << "Determine corresp " << max_distance << std::endl;
+        //std::cout << "Determine corresp " << max_distance << std::endl;
         // For each point choose a random_index, and calculate energy of all
         // others, given that translation.
-        std::cout << "prev energy: " << min_energy << std::endl;
+        //std::cout << "prev energy: " << min_energy << std::endl;
         
         // Recalculate min-energy
         // if (min_energy != std::numeric_limits<float>::max()) {
@@ -166,19 +168,23 @@ class PatchMatchCorrespondenceEstimation : public CorrespondenceEstimationNormal
         
 
         correspondences.resize(indices_->size());
+        #pragma omp parallel for
         for (int i = 0; i < indices_->size(); i++) {
             pcl::Correspondences temp (indices_->size());
-            float energy = get_point_correspondence(i, max_distance, temp);
+            float energy = get_point_correspondence(i, max_distance, temp, min_energy);
             //std::cout << "last energy: " << energy << std::endl;
-            if (energy < min_energy) {
-                if (min_correspondences.size() == 0)
-                    min_correspondences.resize(indices_->size());
-                copyCorresp(temp, min_correspondences);
-                min_energy = energy;
+            #pragma omp critical
+            {
+                if (energy < min_energy) {
+                    if (min_correspondences.size() == 0)
+                        min_correspondences.resize(indices_->size());
+                    copyCorresp(temp, min_correspondences);
+                    min_energy = energy;
+                }
             }
         }
         copyCorresp(min_correspondences, correspondences);
-        std::cout << "min energy " << min_energy << std::endl;
+        //std::cout << "min energy " << min_energy << std::endl;
         deinitCompute();
     }
 
@@ -391,18 +397,19 @@ class PatchMatchICP : public pcl::IterativeClosestPoint<PointSource, PointTarget
         
         // -----------------------
         
-        std::cout << "PM" << std::endl;
+        //std::cout << "PM" << std::endl;
 
         nr_iterations_ = 0;
+        pcl::copyPointCloud (*input_transformed, *key_points, *input_sampled);
         do
         {
-            std::cout << "DEBUG " << nr_iterations_ << std::endl;
-            BOOST_LOG_TRIVIAL(debug) << "Iteraction " << nr_iterations_;
+            //std::cout << "DEBUG " << nr_iterations_ << std::endl;
+            //BOOST_LOG_TRIVIAL(debug) << "Iteraction " << nr_iterations_;
            
             if (nr_iterations_ >= max_iterations_)
                break;
 
-            pcl::copyPointCloud (*input_transformed, *key_points, *input_sampled); 
+            //pcl::copyPointCloud (*input_transformed, *key_points, *input_sampled); 
 
             pcl::PCLPointCloud2::Ptr input_transformed_blob;
             if (need_source_blob_)
@@ -447,13 +454,6 @@ class PatchMatchICP : public pcl::IterativeClosestPoint<PointSource, PointTarget
                 converged_ = false;
                 break;
             }
-            //std::cout << "DEBUG3" << std::endl;
-            // Transform sample indexes to source indexes
-            // for (int i = 0; i < correspondences_->size(); i++) {
-            //     auto &corresp = correspondences_->at(i);
-            //     int src_idx = key_points->at(corresp.index_query);
-            //     corresp.index_query = src_idx; 
-            // }
 
             float min_energy = 0;
             for (int i = 0; i < correspondences_->size(); i++) {
@@ -463,47 +463,36 @@ class PatchMatchICP : public pcl::IterativeClosestPoint<PointSource, PointTarget
                 const PointTarget t = target_->points[tgt];
                 min_energy += sqrt(distance<PointSource>(p, t));
             }
-            std::cout << "curr corresp energy: " << min_energy << std::endl;
+            //std::cout << "curr corresp energy: " << min_energy << std::endl;
 
             // Estimate the transform
             transformation_estimation_->estimateRigidTransformation(*input_sampled, *target_, *correspondences_, transformation_);
-            //std::cout << "DEBUG4" << std::endl;
-            // Transform the data
-            transformCloud(*input_transformed, *input_transformed, transformation_);
+            //transformCloud(*input_transformed, *input_transformed, transformation_);
+            transformCloud(*input_sampled, *input_sampled, transformation_);
 
-            // Obtain the final transformation
             final_transformation_ = transformation_ * final_transformation_;
-
             min_energy = 0;
             for (int i = 0; i < correspondences_->size(); i++) {
                 int src = correspondences_->at(i).index_query;
                 int tgt = correspondences_->at(i).index_match;
-                int src_r = key_points->at(src);
-                const PointSource p = input_transformed->points[src_r]; 
+                //int src_r = key_points->at(src);
+                //const PointSource p = input_transformed->points[src_r]; 
+                const PointSource p = input_sampled->points[src]; 
                 const PointTarget t = target_->points[tgt];
                 min_energy += sqrt(distance<PointSource>(p, t));
             }
-            std::cout << "updated corresp energy: " << min_energy << std::endl;
+            //std::cout << "updated corresp energy: " << min_energy << std::endl;
 
             ++nr_iterations_;
 
-            // Update the vizualization of icp convergence
-            //if (update_visualizer_ != 0)
-            //  update_visualizer_(output, source_indices_good, *target_, target_indices_good );
-
-            //std::cout << "CC: " << convergence_criteria_2->getConvergenceState() << " " << pcl::registration::DefaultConvergenceCriteria<Scalar>::CONVERGENCE_CRITERIA_NOT_CONVERGED << std::endl;
-
-            //bool temp = convergence_criteria_2->hasConverged(); 
-            //converged_ = temp;
-            //std::cout << "CC1: " << temp << " " << converged_ << " " << convergence_criteria_2->getConvergenceState() << std::endl;
         } while (!converged_);
 
         // Transform the input cloud using the final transformation
-        PCL_DEBUG("Transformation is:\n\t%5f\t%5f\t%5f\t%5f\n\t%5f\t%5f\t%5f\t%5f\n\t%5f\t%5f\t%5f\t%5f\n\t%5f\t%5f\t%5f\t%5f\n",
-                  final_transformation_(0, 0), final_transformation_(0, 1), final_transformation_(0, 2), final_transformation_(0, 3),
-                  final_transformation_(1, 0), final_transformation_(1, 1), final_transformation_(1, 2), final_transformation_(1, 3),
-                  final_transformation_(2, 0), final_transformation_(2, 1), final_transformation_(2, 2), final_transformation_(2, 3),
-                  final_transformation_(3, 0), final_transformation_(3, 1), final_transformation_(3, 2), final_transformation_(3, 3));
+        // PCL_DEBUG("Transformation is:\n\t%5f\t%5f\t%5f\t%5f\n\t%5f\t%5f\t%5f\t%5f\n\t%5f\t%5f\t%5f\t%5f\n\t%5f\t%5f\t%5f\t%5f\n",
+        //           final_transformation_(0, 0), final_transformation_(0, 1), final_transformation_(0, 2), final_transformation_(0, 3),
+        //           final_transformation_(1, 0), final_transformation_(1, 1), final_transformation_(1, 2), final_transformation_(1, 3),
+        //           final_transformation_(2, 0), final_transformation_(2, 1), final_transformation_(2, 2), final_transformation_(2, 3),
+        //           final_transformation_(3, 0), final_transformation_(3, 1), final_transformation_(3, 2), final_transformation_(3, 3));
 
         // Copy all the values
         output = *input_;

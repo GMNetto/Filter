@@ -20,9 +20,11 @@
 
 void read_directory(const std::string& name, std::vector<std::string>& v)
 {
+    std::cout << "Files dir " << name << std::endl;
     DIR* dirp = opendir(name.c_str());
     struct dirent * dp;
     while ((dp = readdir(dirp)) != NULL) {
+        std::cout << "File dir " << dp->d_name << std::endl;
         v.push_back(dp->d_name);
     }
     closedir(dirp);
@@ -75,6 +77,7 @@ void KITTI::loadCloud(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud) {
     
     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr groundless (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
     segment->ground_removal(cloud, groundless);
+    pcl::copyPointCloud(*groundless, *cloud);
     current_cloud = groundless;
     std::cout << "Loaded cloud2" << std::endl;
     if (segment_mode == "GT_SEG") {
@@ -192,8 +195,9 @@ pcl::PointXYZ KITTI::icpBox(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr previou
         transform = icp.getFinalTransformation();
     } else if (kitti_tech == "trICP") {
         transform.setIdentity();
-        trimmed_icp.setNewToOldEnergyRatio (0.995f);
-        trimmed_icp.align(*previous, 100, transform);
+        trimmed_icp.setNewToOldEnergyRatio (0.99f);
+        int npo = previous->points.size()/3;
+        trimmed_icp.align(*previous, npo, transform);
         pcl::transformPointCloud(*previous, *transformed, transform);
     } else if (kitti_tech == "pmICP") {
         std::cout << "start PM ICP" << std::endl;

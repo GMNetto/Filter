@@ -95,6 +95,22 @@ int save_txt_file(std::string f, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cl
   return 0;
 }
 
+int save_colored_txt_file(std::string f, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud) {
+  std::ofstream outfile;
+
+  std::cout << "Saving " << f << std::endl;
+  outfile.open(f, std::fstream::out | std::fstream::trunc);
+
+  for (int i = 0; i < cloud->points.size(); i++) {
+    pcl::PointXYZRGBNormal &p = cloud->points[i];
+    outfile << p.x << " " << p.y << " " << p.z << " " << p.normal_x << " " << p.normal_y << " " << p.normal_z << std::endl;
+  }
+
+  outfile.close();
+  return 0;
+}
+
+
 bool load_cloud(std::string &f1,
                 pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud1,
                 InputParams &input_params) {

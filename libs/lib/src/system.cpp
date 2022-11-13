@@ -6,6 +6,7 @@
 
 #include <pcl/search/kdtree.h>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/io/ply_io.h>
 
 #include <pcl/visualization/pcl_visualizer.h>
 
@@ -300,6 +301,8 @@ Optimizer::optimize(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud1,
     gp3.setInputCloud (cloud1);
     gp3.reconstruct (triangles);
 
+    pcl::io::savePLYFile("/home/gustavo/filter/dewan/mesh.ply", triangles);
+
     std::cout << "Number Triangles: " << triangles.polygons.size() << std::endl;
 
     for (int i = 0; i < triangles.polygons.size(); i++) {
@@ -349,7 +352,7 @@ Optimizer::optimize(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud1,
     std::cout << "Optimizing" << std::endl;
     test_optimizer.initializeOptimization();
     //test_optimizer.setVerbose(true);
-    test_optimizer.optimize(1);
+    test_optimizer.optimize(number_iter);
     std::cout << "Optimized" << std::endl;
     pcl::copyPointCloud(*cloud1, *new_cloud);
 

@@ -6,14 +6,14 @@
     "keypoint_radius": 0.1,
 
 
-    "descriptorTECH": "SHOT",
-    "descriptor_radius": 0.4,
+    "descriptorTECH": "NONE",
+    "descriptor_radius": 0.5,
 
-    "matchTECH": "OPTIMIZATION",
-    "match_radius": 0.3,
+    "matchTECH": "SKIP",
+    "match_radius": 0.4,
     "match_icp": 1.2,
 
-    "patch_radius": 0.3,
+    "patch_radius": 0.2,
     "patch_min": 0.15,
     "patchmatch_levels": 2, 
 
@@ -22,7 +22,7 @@
     "sift_n_octaves": 3,
     "sift_n_scales_octave": 1,
 
-    "ransac_max_iter": 10,
+    "ransac_max_iter": 5,
     "icp_max_iter": 5,
     "icp_transformation_eps": 0.000001,
     "number_init": 3,
@@ -40,6 +40,6 @@
     "use_icp": true,
     "motion_bb": 0.0,
     "use_GT": false,
-    "KITTITECH": "c2ICP",
-    "focus_object": "All"
+    "KITTITECH": "pmICP",
+    "focus_object": "Car"
 }

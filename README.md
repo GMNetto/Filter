@@ -1,5 +1,7 @@
 # Coarse-to-Fine CloudMatch
 
+Obs: This source code was produced for research and experimentation on rigid and non-rigid registration. It is not completly functional or documented.
+
 These are the experiments and how to run them:
 
 ## Errors from KITTI sequence 
@@ -20,7 +22,7 @@ Assuming the following directory organization:
 
 where, each individual object `0.txt`, `1.xt` is gotten following the KITTI GT (bounding boxes and position). `groundless.txt` is the entire point cloud with the groud removed.
 
-The next stop is to generate the transformation matrix for each onject. This can be done by calling:
+The next step is to generate the transformation matrix for each onject. This can be done by calling:
 
 ```
 python3 python/evaluate_rigid.py --mode=<tech name>
@@ -169,7 +171,7 @@ In this example, the idea is to focus on the person walking in the cloud, in spe
 
 ## MIT Sequence
 
-The script has detauls about the parameters.
+The script has details about the parameters.
 http://people.csail.mit.edu/drdaniel/mesh_animation/#data
 
 ``` 

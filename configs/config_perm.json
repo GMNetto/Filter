@@ -1,5 +1,5 @@
 {
-    "normal_radius": 0.1,
+    "normal_radius": 0.25,
     "keypointTECH": "UNIFORM",
     "keypoint_method": "HARRIS",
     "keypoint_threshold": 1e-7, 
@@ -7,14 +7,14 @@
 
 
     "descriptorTECH": "NONE",
-    "descriptor_radius": 0.3,
+    "descriptor_radius": 0.5,
 
     "matchTECH": "NONE",
-    "match_radius": 0.3,
-    "match_icp": 0.6,
+    "match_radius": 0.5,
+    "match_icp": 0.5,
 
-    "patch_radius": 0.15,
-    "patch_min": 0.1,
+    "patch_radius": 0.25,
+    "patch_min": 0.2,
     "patchmatch_levels": 2, 
 
     "sift_min_contrast": 0.001,
@@ -23,23 +23,23 @@
     "sift_n_scales_octave": 1,
 
     "ransac_max_iter": 12,
-    "icp_max_iter": 20,
+    "icp_max_iter": 10,
     "icp_transformation_eps": 0.000001,
-    "number_init": 3,
+    "number_init": 1,
     "sigma_s": 2,
     "sigma_r": 0.08,
     "sigma_d": 0.7,    
-    "radius_pf": 0.03,
-    "uniform_radius": 0.08,
+    "radius_pf": 0.2,
+    "uniform_radius": 0.3,
 
     "cpd_beta": 2,
-    "cpd_lambda": 1.5,
+    "cpd_lambda": 10,
     "cpd_max_iterations": 10,
-    "cpd_tolerance": 0.001,
+    "cpd_tolerance": 0.01,
 
-    "use_icp": true,
+    "use_icp": false,
     "motion_bb": 0.0,
-    "use_GT": false,
+    "use_GT": true,
     "KITTITECH": "c2ICP",
-    "focus_object": "Pedestrian"
+    "focus_object": "Car"
 }

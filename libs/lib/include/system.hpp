@@ -25,6 +25,7 @@ class Optimizer {
     typedef g2o::LinearSolverCSparse<TestBlockSolver::PoseMatrixType> TestLinearSolver;
     g2o::SparseOptimizer test_optimizer;
     pcl::GreedyProjectionTriangulation<pcl::PointXYZRGBNormal> gp3;
+    int number_iter;
 
     public:
     Optimizer(InputParams &input_params) {
@@ -33,13 +34,16 @@ class Optimizer {
         test_optimizer.setAlgorithm(test_solver);
 
         gp3.setSearchRadius (input_params.patch_min);
+        number_iter - input_params.icp_max_iter;
 
         // Set typical values for the parameters
         gp3.setMu (2.5);
-        gp3.setMaximumNearestNeighbors (100);
-        gp3.setMaximumSurfaceAngle(M_PI/4); // 45 degrees
-        gp3.setMinimumAngle(M_PI/18); // 10 degrees
-        gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
+        gp3.setMaximumNearestNeighbors (1000);
+        //gp3.setMaximumSurfaceAngle(M_PI/2); // 45 degrees
+        gp3.setMaximumSurfaceAngle(M_PI);
+        //gp3.setMinimumAngle(M_PI/18); // 10 degrees
+        gp3.setMinimumAngle(0);
+        gp3.setMaximumAngle(2*M_PI/2); // 120 degrees
         gp3.setNormalConsistency(false);
     }
 
